@@ -4,7 +4,6 @@
 # @Author  : tianqi
 # @File    : util.py
 from PyQt5.QtWidgets import QDesktopWidget, QProgressBar, QWidget
-from process_window import ProcessWindow
 class Util():
 
     def __init__(self):
@@ -25,7 +24,7 @@ class Util():
 
 
 
-    def start_analysis(self,log_path,result_path,find_data):
+    def start_analysis(self,log_path,find_data):
 
         try:
             log_file = open(log_path,"r")
