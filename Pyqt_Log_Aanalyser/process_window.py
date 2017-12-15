@@ -4,8 +4,7 @@
 # @Author  : tianqi
 # @File    : process_window.py
 import sys
-from PyQt5.QtCore import QBasicTimer
-from PyQt5.QtWidgets import QWidget, QProgressBar, QPushButton, QApplication, QMainWindow, QTextEdit
+from PyQt5.QtWidgets import QWidget,QApplication, QMainWindow, QTextEdit
 
 
 # from util import Util
