@@ -1,8 +1,7 @@
 # 主窗口，应用qt designer 生成的类
 import sys
-
 import time
-
+import logging
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QLCDNumber
 from USBRelay_Ui import Ui_MainWindow
@@ -19,18 +18,17 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.stop_button.setEnabled(False)
         self.lineEdit_wait.setText(str(10))
         self.lineEdit_loop.setText(str(10000))
-
-        # 读取目前设备上的所有串口，加入combox供用户选择
-        portlist = self.get_port_list()
-        index = 1
-        for i in portlist:
-            self.comboBox.insertItem(index, i)
-            index +=1
+        self.lineEdit_off_on.setText(str(6))
+        self.serial = None
+        self.index = 1                              # 记录combox的所有item
 
     def start_run(self):
+
         wait_time = self.lineEdit_wait.text()
         loop = self.lineEdit_loop.text()
-        com = self.comboBox.currentText()
+        com = self.comboBox.currentText().split(" ")[0]
+        print(com)
+        off_to_on_time = self.lineEdit_off_on.text()
         self.stop_button.setEnabled(True)
 
         # 判断是否选择了串口号
@@ -45,36 +43,51 @@ class MainWindow(QMainWindow,Ui_MainWindow):
             # 判断输入的等待时间和循环次数是否是正整数
             try:
                 self.start.setEnabled(False)
+                self.lcdNumber.display(0)               # 每次运行之前初始化显示循环次数为0
+                self.serial = serial.Serial(com, 9600)  # 打开串口
                 self.thread = RunThread()
-                self.thread.set_com(com)
+                # 设置串口、开关延时时间、循环重复次数
+                self.thread.set_serial(self.serial)
                 self.thread.set_loop(int(loop))
                 self.thread.set_wait_time(int(wait_time))
+                self.thread.set_off_to_on_time(int(off_to_on_time))
+                # 发送信号显示
                 self.thread.signal.connect(self.display)
                 self.thread.done_signal.connect(self.compelted)
                 self.thread.start()
-            except ValueError:
-                QMessageBox.information(self, "Warning!", "等待时间或者循环数只能是正整数，请检查输入")
+                self.thread.quit()    # 运行结束后结束线程
+            except Exception as e:
+                QMessageBox.information(self, "Warning!", "发生错误!\n错误信息："+str(e))
+                logging.error("转换输入值时发送错误\n"+str(e))
 
+    # 获取接入的所有串口号
     def get_port_list(self):
         port_list = list(serial.tools.list_ports.comports())
         for port in port_list:
-            yield port[0]
+            yield str(port)
 
+    # lcd组件接收到信号后显示数字
     def display(self, times):
         print(times)
         self.lcdNumber.display(times)
 
     def stop(self):
-        if self.thread:
+        try:
+            # 按下停止键就结束线程，不进行下一步的循环
             self.thread.terminate()
-            print("停止线程")
+            self.thread.wait(10)   # 确保线程终止
+            print("结束线程")
+            if self.serial.isOpen(): # 检测串口是否关闭，若没关闭则关闭串口
+                self.serial.close()
+            self.start.setEnabled(True)
+            self.stop_button.setEnabled(False)
+        except Exception as e:
+            logging.error("停止线程失败，错误信息：{0}".format(str(e)))
 
     def compelted(self, msg):
         print(msg)
         QMessageBox.information(self,"提示","已完成{0}次上下电".format(msg.split(" ")[1]))
         self.start.setEnabled(True)
-
-
 
 
 class RunThread(QThread):
@@ -83,34 +96,43 @@ class RunThread(QThread):
 
     def __init__(self,parent = None):
         super().__init__()
-        self._com_num = None  # 串口号
-        self._loop = None   # 循环次数
-        self._wait_time = None # 等待时间
+        self._com_num = None         # 串口号
+        self._loop = None            # 循环次数
+        self._wait_time = None       # 等待时间
+        self._off_to_on_time = None  # 继电器从进入下一次循环的等待时间
+        self._serial = None          # 打开的串口对象
 
     def run(self):
         try:
             # 开始发送命令给继电器控制上下电
-            ser = serial.Serial(self._com_num, 9600)  # open serial port
             for i in range(self._loop):
-                ser.write(bytes.fromhex("A0 01 01 A2"))  # turn on
+                self.signal.emit(i + 1)  # 发射信号
+                self._serial.write(bytes.fromhex("A0 01 01 A2"))    # turn on
                 time.sleep(self._wait_time)
-                ser.write(bytes.fromhex("A0 01 00 A1")) # turn off
-                time.sleep(6)
-                self.signal.emit(i+1)  # 发射信号
-            ser.close()  # close port
+                self._serial.write(bytes.fromhex("A0 01 00 A1"))    # turn off
+                time.sleep(self._off_to_on_time)
+            self._serial.close()                                    # close port
             self.done_signal.emit("Done {0}".format(str(self._loop)))   # 发出完成信号
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error("向继电器发送指令过程中出现了异常:{0}".format(e))
+            raise e  # 抛出异常
 
-    def set_com(self,comnum):
-        self._com_num = comnum
+
+    '''
+    set方法，设置线程运行需要的参数：串口号、延时、循环数
+    '''
+
+    def set_serial(self,ser):
+        self._serial = ser
 
     def set_loop(self,loop):
         self._loop = loop
 
-    def set_wait_time(self,wait_time):
+    def set_wait_time(self, wait_time):
         self._wait_time = wait_time
 
+    def set_off_to_on_time(self, seconds):
+        self._off_to_on_time = seconds
 # 调试
 if __name__=='__main__':
 
@@ -118,9 +140,3 @@ if __name__=='__main__':
     exe = MainWindow()
     exe.show()
     sys.exit(app.exec_())
-    # portlist = MainWindow.get_port_list()
-    # for i in portlist:
-    #     print(i)
-
-    # ser = serial.Serial("COM20", 9600)
-    # ser.write("\xA0\x01\x01\xA2".encode())  # turn on

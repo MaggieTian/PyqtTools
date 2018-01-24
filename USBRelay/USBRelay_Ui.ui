@@ -6,149 +6,141 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>630</width>
-    <height>600</height>
+    <width>421</width>
+    <height>421</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QLabel" name="com_num">
-    <property name="geometry">
-     <rect>
-      <x>150</x>
-      <y>110</y>
-      <width>61</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>COM串口号</string>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="comboBox">
-    <property name="geometry">
-     <rect>
-      <x>270</x>
-      <y>110</y>
-      <width>171</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <item>
-     <property name="text">
-      <string>请选择继电器串口号</string>
-     </property>
-    </item>
-   </widget>
-   <widget class="QLabel" name="wait_time">
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>190</y>
-      <width>71</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>开关间隔时间</string>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_wait">
-    <property name="geometry">
-     <rect>
-      <x>270</x>
-      <y>190</y>
-      <width>171</width>
-      <height>20</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="seconds">
-    <property name="geometry">
-     <rect>
-      <x>450</x>
-      <y>190</y>
-      <width>41</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>秒（s）</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="loop_times">
-    <property name="geometry">
-     <rect>
-      <x>150</x>
-      <y>260</y>
-      <width>54</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>循环次数</string>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_loop">
-    <property name="geometry">
-     <rect>
-      <x>270</x>
-      <y>260</y>
-      <width>171</width>
-      <height>20</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="times">
-    <property name="geometry">
-     <rect>
-      <x>450</x>
-      <y>260</y>
-      <width>31</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>次</string>
-    </property>
-   </widget>
    <widget class="QPushButton" name="start">
     <property name="geometry">
      <rect>
-      <x>370</x>
-      <y>440</y>
+      <x>280</x>
+      <y>340</y>
       <width>91</width>
       <height>41</height>
      </rect>
     </property>
     <property name="text">
-     <string>确定</string>
+     <string>开 始</string>
     </property>
    </widget>
    <widget class="QPushButton" name="stop_button">
     <property name="geometry">
      <rect>
-      <x>180</x>
-      <y>440</y>
+      <x>100</x>
+      <y>340</y>
       <width>91</width>
       <height>41</height>
      </rect>
     </property>
     <property name="text">
-     <string>停止</string>
+     <string>停 止</string>
     </property>
    </widget>
-   <widget class="QLCDNumber" name="lcdNumber">
+   <widget class="QWidget" name="gridLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>270</x>
-      <y>350</y>
-      <width>161</width>
-      <height>41</height>
+      <x>10</x>
+      <y>30</y>
+      <width>411</width>
+      <height>291</height>
      </rect>
     </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <property name="verticalSpacing">
+      <number>30</number>
+     </property>
+     <item row="4" column="2">
+      <widget class="QLabel" name="second_off">
+       <property name="text">
+        <string>秒（s）</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="lineEdit_off_on"/>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLabel" name="times">
+       <property name="text">
+        <string>次</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="loop_times">
+       <property name="text">
+        <string>重复次数</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="current_times">
+       <property name="text">
+        <string>当前执行次数</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="lineEdit_loop"/>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="sleep_off_to_on">
+       <property name="text">
+        <string>延时（OFF-&gt;ON）</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="com_num">
+       <property name="text">
+        <string>COM串口号</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="wait_time">
+       <property name="text">
+        <string>延时（ON-&gt;OFF）</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="comboBox">
+       <item>
+        <property name="text">
+         <string>请选择继电器串口号</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="lineEdit_wait"/>
+     </item>
+     <item row="1" column="2">
+      <widget class="QLabel" name="seconds_on">
+       <property name="text">
+        <string>秒（s）</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLCDNumber" name="lcdNumber"/>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="check_button">
+       <property name="text">
+        <string>检测串口</string>
+       </property>
+       <property name="autoRepeatDelay">
+        <number>200</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -156,7 +148,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>630</width>
+     <width>421</width>
      <height>23</height>
     </rect>
    </property>
