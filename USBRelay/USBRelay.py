@@ -8,7 +8,9 @@ from USBRelay_Ui import Ui_MainWindow
 import serial
 import serial.tools.list_ports
 
-
+'''
+设置日志信息记录
+'''
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.FileHandler("usbrelay.log")
@@ -16,6 +18,10 @@ handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+'''
+窗口中的事件信号连接等实现
+'''
 
 
 class MainWindow(QMainWindow,Ui_MainWindow):
@@ -27,7 +33,7 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.stop_button.setEnabled(False)
 
         # 设置延时和循环次数的默认值
-        self.lineEdit_wait.setText(str(10))
+        self.lineEdit_wait.setText(str(6))
         self.lineEdit_loop.setText(str(10000))
         self.lineEdit_off_on.setText(str(6))
         self.serial = None
@@ -93,6 +99,7 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         logger.info("循环次数"+msg)
         QMessageBox.information(self,"提示","已完成{0}次上下电".format(msg.split(" ")[1]))
         self.start.setEnabled(True)
+        self.stop_button.setEnabled(False)
 
 
 class RunThread(QThread):
