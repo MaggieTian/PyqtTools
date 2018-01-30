@@ -11,7 +11,6 @@ from PyQt5.QtCore import pyqtSignal
 
 
 class CustomComboBox(QComboBox):
-    popupAboutToBeShown = pyqtSignal()
 
     def __init__(self, parent = None):
         super(CustomComboBox,self).__init__(parent)
