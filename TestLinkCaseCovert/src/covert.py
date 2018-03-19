@@ -6,11 +6,13 @@ from PyQt5.QtWidgets import QApplication,QMainWindow,QMessageBox,QFileDialog
 import logging
 import xlrd
 
+
 # 定义所需数据所在的列
 CASE_COL = 2
 EXPECTED_RESULT_COL = CASE_COL+1  # 期望结果
 PRIORITY_COL = CASE_COL + 5       # 优先级
 COMMENT_COL = CASE_COL +7         # 注释说明
+CASE_NUM = 50                     # xml文件里最大用例个数
 # 生成用例的xml模板
 TESTCASE_TMPLATE = '''
                             <testcase name="{testcaseName}">
@@ -47,8 +49,8 @@ TESTSUITE_TMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
                 '''
 
 
-class MainWindow(QMainWindow,Ui_MainWindow):
-    def __init__(self, parent = None):
+class MainWindow(QMainWindow, Ui_MainWindow):
+    def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.setupUi(self)
         # 设置为只读，不允许用户自行输入路径，只能从浏览按钮选择路径
@@ -85,26 +87,55 @@ class MainWindow(QMainWindow,Ui_MainWindow):
             logging.exception("转换过程出现异常", exc_info=True)
 
     # 将生成的xml内容写入文件
+
     def write_xml_to_file(self, sheet):
-        testcaseSuiteName = sheet.name  # 测试组件的名字为sheet的名字
-        if sheet.name != "Safeview" and sheet.name != "Issue List":    # 名为
+        if sheet.name != "Safeview" and sheet.name != "Issue List":    # 名为Safeview和Issue List的表格不需要转换，不是测试用例
             try:
                 # 创建与输入的excel文件同名的文件夹，用于存放生成的xml文件(生成的xml文件可能有多个)
                 xml_dir = os.path.join(self.xml_path, os.path.basename(self.excel_path).replace(".xlsx", ""))
-                os.mkdir(xml_dir)
-                # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
-                with open(os.path.join(xml_dir, sheet.name+".xml"), "wb") as f:
-                    f.write(bytes(TESTSUITE_TMPLATE.format(testcaseSuiteName=str(testcaseSuiteName),detail=str(testcaseSuiteName)), encoding="utf-8"))  # 写进测试组件头
-                    text = self.generate_xml(sheet)     # 获取生成的xml内容
-                    for line in text:
-                        f.write(bytes(line, encoding="utf-8"))
-                    f.write(bytes("</testsuite>", encoding="utf-8"))
-                QMessageBox.information(self,"转换成功提示","成功！xml文件保存在{path}路径下".format(path=xml_dir))   # 写入完成后进行提示说明
+                if not os.path.exists(xml_dir):
+                    os.mkdir(xml_dir)
+                self.write_xml_file_by_cnt(xml_dir, CASE_NUM, sheet)
+                QMessageBox.information(self, "转换成功提示", "成功！xml文件保存在{path}路径下".format(path=os.path.abspath(xml_dir)))   # 写入完成后进行提示说明
             except Exception:
                 logging.exception("转换失败", exc_info=True)
 
+    # 往文件里写入cnt个用例
+    def write_xml_file_by_cnt(self, xml_dir, cnt, sheet):
+        '''
+        :param xml_dir: the dir path to save the generation xml file
+        :param cnt:  total count of test case in each xml file
+        :param sheet: sheet in excel
+        :return: None
+        '''
+        index = 1   # 用来记录生成的xml文件编号（用于当excel中用例条数过多，生成的文件需要拆分成几个xml文件，eg:**1.xml,**2.xml ）
+        text = self.generate_xml(sheet)  # 得到生成用例的生成器
+        try:
+            while text and True:
+                f = open(os.path.join(xml_dir, sheet.name+str(index)), "wb")  # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
+                index += 1  # 编号递增
+                count = cnt
+                f.write(bytes(TESTSUITE_TMPLATE.format(testcaseSuiteName=str(sheet.name), detail=str(sheet.name)), encoding="utf-8"))  # 写进测试组
+                while count:
+                    f.write(bytes(next(text), encoding="utf-8"))
+                    count -= 1
+                f.write(bytes("</testsuite>", encoding="utf-8"))
+                f.close()
+        except StopIteration:
+            # 跳出循环的时候，最后一段的用例数不够count条，在文件中继续写入套件结尾，并关闭文件
+            if count!=3:
+                f.write(bytes("</testsuite>", encoding="utf-8"))
+                f.close()
+            # 用例总数/n为整数，刚好能转换成用例总数/n个xml文件，移出新建的多余的文件
+            else:
+                os.remove(os.path.join(xml_dir, sheet.name+str(index-1)))
+
     # 根据传入的表格生成相应的xml内容
     def generate_xml(self, sheet):
+        '''
+        :param sheet: the sheet in excel
+        :return: a generator that generates every test case xml format content
+        '''
         sheet_name = sheet.name
         if sheet_name != "Safeview" and sheet_name != "Issue List":
             # 获取表格行数和列数
@@ -154,11 +185,11 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         xml_path = self.xml_path_edit.text()      # 导出的xml文件路径
 
         if len(excel_path) == 0:
-            QMessageBox.information(self,"warning","请输入要转换的xlsx格式文件路径！")
+            QMessageBox.information(self, "warning", "请输入要转换的xlsx格式文件路径！")
         elif not excel_path.endswith(".xlsx"):
             QMessageBox.information(self, "warning", "输入文件必须是xlsx格式的文件！")
         elif len(xml_path)==0:
-            QMessageBox.information(self,"waring","请输入导出xml文件的存储路径")
+            QMessageBox.information(self, "waring", "请输入导出xml文件的存储路径")
         else:
             self.excel_path= excel_path
             self.xml_path = xml_path
@@ -178,22 +209,23 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         dname = QFileDialog.getExistingDirectory(self, "Save Directory", "/C")  # 开始设置的文件夹路径
         try:
             if dname:
-                self.xml_path_edit.setText(dname)
+                self.xml_path_edit.setText(dname)   # 设置输入框显示选择的路径
             else:
                 QMessageBox.information(self, "warning", "请选择转换完的xml文件存储路径")
         except Exception:
-            logging.exception("选择存储路径出现异常",exc_info=True)
+            logging.exception("选择存储路径出现异常", exc_info=True)
             self.close()
 
     # 退出程序
     def exit_app(self):
         self.close()
 
-if __name__ =="__main__":
+
+if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
         exe = MainWindow()
         exe.show()
         sys.exit(app.exec_())
     except Exception:
-        logging.exception("程序出现异常",exc_info=True)
+        logging.exception("程序出现异常", exc_info=True)
