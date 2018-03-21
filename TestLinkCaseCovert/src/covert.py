@@ -5,6 +5,7 @@ from src.Covert_UI import Ui_MainWindow
 from PyQt5.QtWidgets import QApplication,QMainWindow,QMessageBox,QFileDialog
 import logging
 import xlrd
+from src.xml_to_excel import XmlToExcel
 
 
 # 定义所需数据所在的列
@@ -79,14 +80,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # 转换
     def convert(self):
-        try:
-            workbook = xlrd.open_workbook(self.excel_path)  # 获取工作簿
-            for sheet in workbook.sheets():
-                self.write_xml_to_file(sheet)
-        except Exception:
-            logging.exception("转换过程出现异常", exc_info=True)
-
-    # 将生成的xml内容写入文件
+        # excel to xml
+        if self.excel_to_xml.isChecked():
+            self.convert_excel_to_xml()
+        # xml to excel
+        elif self.xml_to_excel.isChecked():
+            self.convert_xml_to_exccel()
 
     def write_xml_to_file(self, sheet):
         if sheet.name != "Safeview" and sheet.name != "Issue List":    # 名为Safeview和Issue List的表格不需要转换，不是测试用例
@@ -123,12 +122,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 f.close()
         except StopIteration:
             # 跳出循环的时候，最后一段的用例数不够count条，在文件中继续写入套件结尾，并关闭文件
-            if count!=3:
+            if count!=cnt:
                 f.write(bytes("</testsuite>", encoding="utf-8"))
                 f.close()
             # 用例总数/n为整数，刚好能转换成用例总数/n个xml文件，移出新建的多余的文件
             else:
-                os.remove(os.path.join(xml_dir, sheet.name+str(index-1)))
+                # 先关闭文件再删除
+                if not f.closed:
+                    f.close()
+                os.remove(os.path.abspath(os.path.join(xml_dir, sheet.name+str(index-1))))
 
     # 根据传入的表格生成相应的xml内容
     def generate_xml(self, sheet):
@@ -144,7 +146,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             for row in range(nrows):
                 if "Test Case Table" in sheet.row_values(row):
                     break
-            row = row + 3  # 得到用例开始的行
+            row = row + 3           # 得到用例开始的行
             while row < nrows:
                 # 得到测试用例相应的元素：标题、测试步骤、优先级、说明、期望结果
                 testCaseContent = sheet.cell_value(row, CASE_COL)
@@ -178,21 +180,59 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # 返回每次生成的测试用例xml内容
                 yield TESTCASE_TMPLATE.format(testcaseName=str(testCaseName), describeContent=str(testCaseName), testcaseComment=str(testcaseComment), iPriority=str(priority_num), testcaseStep=str(case_steps), testcaseExpeRes=str(testcaseExpeRes))
 
+    # excel转换成xml
+    def convert_excel_to_xml(self):
+        try:
+
+            workbook = xlrd.open_workbook(self.excel_path)  # 获取工作簿
+            for sheet in workbook.sheets():
+                self.write_xml_to_file(sheet)
+        except Exception:
+            logging.exception("excel转换xml过程出现异常", exc_info=True)
+            QMessageBox.information(self, "转换失败提示", "详情请查看日志")
+
+    # xml转换成excel
+    def convert_xml_to_exccel(self):
+        try:
+            convert_instance = XmlToExcel()
+            content = convert_instance.generate_excel(self.xml_path)
+            convert_instance.write_to_excel(self.excel_path, content, os.path.basename(str(self.xml_path)).replace(".xml", ''))
+            QMessageBox.information(self, "转换成功提示", "生成的excel文件保存在{path}路径下".format(path= self.excel_path))
+        except Exception:
+            logging.exception("xml转换成excel过程中出现异常", exc_info=True)
+            QMessageBox.information(self, "转换失败提示”，“详情请查看日志")
+
+
     # 验证并得到输入的源文件路径，和导出xml文件路径
     def get_input_path(self):
 
-        excel_path = self.excel_path_edit.text()  # excel文件路径
-        xml_path = self.xml_path_edit.text()      # 导出的xml文件路径
+        excel_path = self.excel_path_edit.text()  # 导入的excel或xml文件路径
+        xml_path = self.xml_path_edit.text()      # 导出的文件夹路径
 
         if len(excel_path) == 0:
-            QMessageBox.information(self, "warning", "请输入要转换的xlsx格式文件路径！")
-        elif not excel_path.endswith(".xlsx"):
+            QMessageBox.information(self, "warning", "请输入要转换的xlsx或者xml格式文件路径！")
+        elif self.excel_to_xml.isChecked() and not excel_path.endswith(".xlsx"):
+            # 清空原有的
+            self.xml_path = None
+            self.excel_path = None
+            self.excel_path_edit.setText('')
             QMessageBox.information(self, "warning", "输入文件必须是xlsx格式的文件！")
+        elif self.xml_to_excel.isChecked() and not excel_path.endswith(".xml"):
+            # 清空原有的
+            self.xml_path = None
+            self.excel_path = None
+            self.excel_path_edit.setText('')
+            QMessageBox.information(self, "warning", "输入文件必须是xml格式的文件！")
         elif len(xml_path)==0:
             QMessageBox.information(self, "waring", "请输入导出xml文件的存储路径")
-        else:
+        elif self.excel_to_xml.isChecked() and excel_path.endswith(".xlsx"):
             self.excel_path= excel_path
             self.xml_path = xml_path
+        elif self.xml_to_excel.isChecked() and excel_path.endswith(".xml"):
+            self.excel_path = xml_path
+            self.xml_path = excel_path
+        else:
+            QMessageBox.information(self, "waring", "请先选择转换方式!")
 
     # 打开文件选择框，选择文件路径
     def select_excel_file(self):
@@ -211,7 +251,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if dname:
                 self.xml_path_edit.setText(dname)   # 设置输入框显示选择的路径
             else:
-                QMessageBox.information(self, "warning", "请选择转换完的xml文件存储路径")
+                QMessageBox.information(self, "warning", "请选择转换完的文件存储路径")
         except Exception:
             logging.exception("选择存储路径出现异常", exc_info=True)
             self.close()
@@ -220,7 +260,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def exit_app(self):
         self.close()
 
-
+# 运行
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
