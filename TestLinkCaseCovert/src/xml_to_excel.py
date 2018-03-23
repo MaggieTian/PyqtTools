@@ -28,10 +28,13 @@ class XmlToExcel():
         # 开始解析xml文件
         tree = ET.ElementTree(file=xml_path)
         root = tree.getroot()                                       # 获取根节点
-        # self.sheet = root.attrib['name']                            # 将表格名字更改为测试套的名字
+        testcase_id = 0
         for child_root in root:
             if child_root.tag == "testcase":
-                testcase_id = child_root.attrib['internalid']     # 写入testcase id
+                if "internalid" in child_root.attrib:
+                    testcase_id = child_root.attrib['internalid']    # 写入testcase id
+                else:                                                # 没有internalid时，就自动计数
+                    testcase_id += 1
                 testcase_title = child_root.attrib['name']          # 测试用例标题
                 steps = ''                                          # 测试步骤
                 expect_result = ''                                  # 期望结果
@@ -55,6 +58,7 @@ class XmlToExcel():
                         step_content += step + '\n'
                 steps = testcase_title+'\n' + step_content
                 expect_result = expect_result.replace("<p>", "").replace("</p>", "").replace("\t", "").replace("\n","").replace(" ", '') + '\n'
+                self.sheet = root.attrib['name']                          # 将表格名字更改为测试套的名字
                 yield {"tesetcase_id": testcase_id, "tesetcase": steps, "expected_result": expect_result, "priority": priority}
 
     def write_to_excel(self,export_dir, content,name):
@@ -72,26 +76,27 @@ class XmlToExcel():
         shutil.copyfile(os.path.join(template_dir, "template.xlsx"),os.path.join(export_dir, name + ".xlsx"))
         workbook = load_workbook(os.path.join(export_dir, name + ".xlsx"))          # 打开文件
         sheet = workbook.active                                                   # 获取正在显示的sheet
+        sheet.name = self.sheet
         row = ROW
-        alignment = Alignment(horizontal='left', vertical='justify', text_rotation=2, wrap_text=True, shrink_to_fit=True, indent=0)
+        alignment = Alignment(horizontal='general', vertical='bottom', text_rotation=0, wrap_text=True, shrink_to_fit= True, indent=0)  # 设置单元格中文字自动换行
         # 将用例写进excel
         for line in content:
             # 写入ID
             cell = sheet.cell(row,CASE_NUM)
-            cell.alignment = alignment
             cell.value = int(line['tesetcase_id'])
             # 写入测试标题和步骤
             cell = sheet.cell(row, CASE_COL)
             cell.value = line['tesetcase']
+            cell.alignment = alignment
             # 写入期望结果
             cell = sheet.cell(row, EXPECTED_RESULT_COL)
             cell.value = line['expected_result']
+            cell.alignment = alignment
             # 写入优先级
             cell = sheet.cell(row, PRIORITY_COL)
             cell.value = line['priority']
             row += 1
         workbook.save(os.path.join(export_dir, name + ".xlsx"))
-
 
 
 if __name__ == "__main__":
