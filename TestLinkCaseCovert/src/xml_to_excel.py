@@ -1,8 +1,9 @@
 import os,shutil
 import xml.etree.ElementTree as ET
 from openpyxl import load_workbook
-import re
 # 定义所需数据所在的列
+from openpyxl.styles import Alignment
+
 ROW = 17
 CASE_NUM = 2
 CASE_COL = CASE_NUM+1             # Case开始的列
@@ -72,10 +73,12 @@ class XmlToExcel():
         workbook = load_workbook(os.path.join(export_dir, name + ".xlsx"))          # 打开文件
         sheet = workbook.active                                                   # 获取正在显示的sheet
         row = ROW
+        alignment = Alignment(horizontal='left', vertical='justify', text_rotation=2, wrap_text=True, shrink_to_fit=True, indent=0)
         # 将用例写进excel
         for line in content:
             # 写入ID
             cell = sheet.cell(row,CASE_NUM)
+            cell.alignment = alignment
             cell.value = int(line['tesetcase_id'])
             # 写入测试标题和步骤
             cell = sheet.cell(row, CASE_COL)
@@ -86,7 +89,7 @@ class XmlToExcel():
             # 写入优先级
             cell = sheet.cell(row, PRIORITY_COL)
             cell.value = line['priority']
-            row +=1
+            row += 1
         workbook.save(os.path.join(export_dir, name + ".xlsx"))
 
 

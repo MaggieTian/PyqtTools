@@ -48,6 +48,13 @@ TESTSUITE_TMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
                     </custom_field>
                 </custom_fields>
                 '''
+# 添加log记录错误消息
+logger = logging.getLogger("error_log")
+logger.setLevel(logging.ERROR)
+file_hander = logging.FileHandler("error_output.log",encoding="utf-8")
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_hander.setFormatter(formatter)
+logger.addHandler(file_hander)
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -76,7 +83,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if self.excel_path and self.xml_path:
                 self.convert()
         except Exception:
-            logging.exception("运行出现异常，请查看日志",exc_info=True)
+            logger.exception("运行出现异常，请查看日志",exc_info=True)
 
     # 转换
     def convert(self):
@@ -97,7 +104,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.write_xml_file_by_cnt(xml_dir, CASE_NUM, sheet)
                 QMessageBox.information(self, "转换成功提示", "成功！xml文件保存在{path}路径下".format(path=os.path.abspath(xml_dir)))   # 写入完成后进行提示说明
             except Exception:
-                logging.exception("转换失败", exc_info=True)
+                logger.exception("转换失败", exc_info=True)
 
     # 往文件里写入cnt个用例
     def write_xml_file_by_cnt(self, xml_dir, cnt, sheet):
@@ -111,7 +118,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         text = self.generate_xml(sheet)  # 得到生成用例的生成器
         try:
             while text and True:
-                f = open(os.path.join(xml_dir, sheet.name+str(index)), "wb")  # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
+                f = open(os.path.join(xml_dir, sheet.name+str(index)+'.xml'), "wb")  # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
                 index += 1  # 编号递增
                 count = cnt
                 f.write(bytes(TESTSUITE_TMPLATE.format(testcaseSuiteName=str(sheet.name), detail=str(sheet.name)), encoding="utf-8"))  # 写进测试组
@@ -188,7 +195,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             for sheet in workbook.sheets():
                 self.write_xml_to_file(sheet)
         except Exception:
-            logging.exception("excel转换xml过程出现异常", exc_info=True)
+            logger.exception("excel转换xml过程出现异常", exc_info=True)
             QMessageBox.information(self, "转换失败提示", "详情请查看日志")
 
     # xml转换成excel
@@ -199,8 +206,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             convert_instance.write_to_excel(self.excel_path, content, os.path.basename(str(self.xml_path)).replace(".xml", ''))
             QMessageBox.information(self, "转换成功提示", "生成的excel文件保存在{path}路径下".format(path= self.excel_path))
         except Exception:
-            logging.exception("xml转换成excel过程中出现异常", exc_info=True)
-            QMessageBox.information(self, "转换失败提示”，“详情请查看日志")
+            logger.exception("xml转换成excel过程中出现异常", exc_info=True)
+            QMessageBox.information(self, "转换失败提示", "转换失败！详情请查看日志")
 
 
     # 验证并得到输入的源文件路径，和导出xml文件路径
@@ -241,7 +248,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if fname[0]:
                 self.excel_path_edit.setText(fname[0])
         except Exception:
-            logging.exception("选择源文件出现异常",exc_info=True)
+            logger.exception("选择源文件出现异常",exc_info=True)
             self.close()
 
     # 打开文件夹选择框，选择保存路径
@@ -253,7 +260,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 QMessageBox.information(self, "warning", "请选择转换完的文件存储路径")
         except Exception:
-            logging.exception("选择存储路径出现异常", exc_info=True)
+            logger.exception("选择存储路径出现异常", exc_info=True)
             self.close()
 
     # 退出程序
@@ -268,4 +275,4 @@ if __name__ == "__main__":
         exe.show()
         sys.exit(app.exec_())
     except Exception:
-        logging.exception("程序出现异常", exc_info=True)
+        logger.exception("程序出现异常", exc_info=True)
