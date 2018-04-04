@@ -116,9 +116,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         '''
         index = 1   # 用来记录生成的xml文件编号（用于当excel中用例条数过多，生成的文件需要拆分成几个xml文件，eg:**1.xml,**2.xml ）
         text = self.generate_xml(sheet)  # 得到生成用例的生成器
+        xml_file = os.path.basename(self.excel_path).replace(".xlsx",'')
         try:
             while text and True:
-                f = open(os.path.join(xml_dir, sheet.name+str(index)+'.xml'), "wb")  # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
+                f = open(os.path.join(xml_dir, xml_file+str(index)+'.xml'), "wb")  # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
                 index += 1  # 编号递增
                 count = cnt
                 f.write(bytes(TESTSUITE_TMPLATE.format(testcaseSuiteName=str(sheet.name), detail=str(sheet.name)), encoding="utf-8"))  # 写进测试组
@@ -201,7 +202,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # xml转换成excel
     def convert_xml_to_exccel(self):
         try:
-            convert_instance = XmlToExcel()
+            convert_instance = XmlToExcel(self.xml_path)
             content = convert_instance.generate_excel(self.xml_path)
             convert_instance.write_to_excel(self.excel_path, content, os.path.basename(str(self.xml_path)).replace(".xml", ''))
             QMessageBox.information(self, "转换成功提示", "生成的excel文件保存在{path}路径下".format(path= self.excel_path))
@@ -231,7 +232,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.excel_path_edit.setText('')
             QMessageBox.information(self, "warning", "输入文件必须是xml格式的文件！")
         elif len(xml_path)==0:
-            QMessageBox.information(self, "waring", "请输入导出xml文件的存储路径")
+            QMessageBox.information(self, "waring", "请选择导出文件的存储路径")
         elif self.excel_to_xml.isChecked() and excel_path.endswith(".xlsx"):
             self.excel_path= excel_path
             self.xml_path = xml_path
