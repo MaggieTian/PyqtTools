@@ -7,12 +7,11 @@ import logging
 import xlrd
 from src.xml_to_excel import XmlToExcel
 
-
 # 定义所需数据所在的列
 CASE_COL = 2
 EXPECTED_RESULT_COL = CASE_COL+1  # 期望结果
 PRIORITY_COL = CASE_COL + 5       # 优先级
-COMMENT_COL = CASE_COL +7         # 注释说明
+COMMENT_COL = CASE_COL + 7        # 注释说明
 CASE_NUM = 50                     # xml文件里最大用例个数
 # 生成用例的xml模板
 TESTCASE_TMPLATE = '''
@@ -51,11 +50,11 @@ TESTSUITE_TMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 # 添加log记录错误消息
 logger = logging.getLogger("error_log")
 logger.setLevel(logging.ERROR)
-file_hander = logging.FileHandler("error_output.log",encoding="utf-8")
+# 日志写入文件的方式默认是追加写入，改为覆盖写入，即日志中记录当次运行出错信息
+file_hander = logging.FileHandler("error_output.log", encoding="utf-8", mode="w")
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_hander.setFormatter(formatter)
 logger.addHandler(file_hander)
-
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
@@ -67,7 +66,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_path = os.path.dirname(__file__)
         self.xml_path_edit.setText(self.current_path)
         self.xml_path_edit.setReadOnly(True)
-        self.exit.clicked.connect(self.exit_app)     # 连接退出槽函数
+        self.exit.clicked.connect(self.exit_app)                    # 连接退出槽函数
         self.start_convert.clicked.connect(self.start_convert_run)  # 连接开始转换的槽函数
         self.excel_path_button.clicked.connect(self.select_excel_file)
         self.xml_path_button.clicked.connect(self.select_xml_file)
@@ -83,7 +82,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if self.excel_path and self.xml_path:
                 self.convert()
         except Exception:
-            logger.exception("运行出现异常，请查看日志",exc_info=True)
+            logger.exception("运行出现异常，请查看日志", exc_info=True)
 
     # 转换
     def convert(self):
@@ -95,7 +94,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.convert_xml_to_exccel()
 
     def write_xml_to_file(self, sheet):
-        if sheet.name != "Safeview" and sheet.name != "Issue List":    # 名为Safeview和Issue List的表格不需要转换，不是测试用例
+        if sheet and sheet.name != "Safeview" and sheet.name != "Issue List":    # 名为Safeview和Issue List的表格不需要转换，不是测试用例
             try:
                 # 创建与输入的excel文件同名的文件夹，用于存放生成的xml文件(生成的xml文件可能有多个)
                 xml_dir = os.path.join(self.xml_path, os.path.basename(self.excel_path).replace(".xlsx", ""))
@@ -114,12 +113,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         :param sheet: sheet in excel
         :return: None
         '''
+        # 检测传入的参数，不正确是抛出异常
+        if not xml_dir or cnt <= 0 or not sheet:
+            raise Exception("write_xml_file_by_cnt函数中传入的参数不正确")
+
         index = 1   # 用来记录生成的xml文件编号（用于当excel中用例条数过多，生成的文件需要拆分成几个xml文件，eg:**1.xml,**2.xml ）
         text = self.generate_xml(sheet)  # 得到生成用例的生成器
         xml_file = os.path.basename(self.excel_path).replace(".xlsx",'')
         try:
             while text and True:
-                f = open(os.path.join(xml_dir, xml_file+str(index)+'.xml'), "wb")  # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
+                f = open(os.path.join(xml_dir, xml_file+str(index)+'.xml'), "wb")   # sheet的名字作为生成的xml文件名，以字节的方式写入，就不会存在编码问题
                 index += 1  # 编号递增
                 count = cnt
                 f.write(bytes(TESTSUITE_TMPLATE.format(testcaseSuiteName=str(sheet.name), detail=str(sheet.name)), encoding="utf-8"))  # 写进测试组
@@ -146,8 +149,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         :param sheet: the sheet in excel
         :return: a generator that generates every test case xml format content
         '''
+        # 检测参数
+        if not sheet and not sheet.name:
+            raise Exception("generate_xml函数传入的sheet参数为空或者None")
         sheet_name = sheet.name
-        if sheet_name != "Safeview" and sheet_name != "Issue List":
+        if sheet_name and sheet_name != "Safeview" and sheet_name != "Issue List":
             # 获取表格行数和列数
             nrows = sheet.nrows
             # 找到开始的行数
@@ -162,16 +168,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 testcasePriority = sheet.cell_value(row, PRIORITY_COL)
                 testcaseComment = sheet.cell_value(row, COMMENT_COL)
                 testCaseName = ''
-                tesetCaseSteps = ''
+                tesetCaseSteps = []
                 # 开始处理每一个元素
                 testCaseItem = testCaseContent.split('测试步骤')
                 if len(testCaseItem) == 2:
                     testCaseName = testCaseItem[0].replace("\n", "")
                     tesetCaseSteps = re.findall("^\d+.*\D$", testCaseItem[1], re.MULTILINE)  # 找到每一条测试步骤，存放在数组中
 
-                # 没有写测试用例标题时
+                # 没有写测试用例标题或测试步骤时
                 elif len(testCaseItem) == 1:
                     tesetCaseSteps = re.findall("^\d+.*\D$", testCaseItem[0], re.MULTILINE)
+                    # 测试步骤为空的情况
+                    if not tesetCaseSteps:
+                        testCaseName = testCaseItem[0]
 
                 # 得到最终的测试步骤内容
                 case_steps = r''
@@ -209,7 +218,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except Exception:
             logger.exception("xml转换成excel过程中出现异常", exc_info=True)
             QMessageBox.information(self, "转换失败提示", "转换失败！详情请查看日志")
-
 
     # 验证并得到输入的源文件路径，和导出xml文件路径
     def get_input_path(self):
@@ -249,7 +257,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if fname[0]:
                 self.excel_path_edit.setText(fname[0])
         except Exception:
-            logger.exception("选择源文件出现异常",exc_info=True)
+            logger.exception("选择源文件出现异常", exc_info=True)
             self.close()
 
     # 打开文件夹选择框，选择保存路径
