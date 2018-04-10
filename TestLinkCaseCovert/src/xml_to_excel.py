@@ -68,7 +68,7 @@ class XmlToExcel():
                 step_content = ''
                 index = 1                       # 步骤计数
                 for step in step_item:
-                    if self.remove_space_and_wrap(step):
+                    if self.remove_space_and_wrap(step) and step.find("测试步骤") < 0:   # 筛掉原本的测试步骤里写了"测试步骤"
                         step_content += str(index)+"." + step + "\n"
                         index += 1
                 steps = self.remove_space_and_wrap(testcase_title)+'\n' + ACTION_STEPS + step_content
